@@ -180,6 +180,11 @@ class CDXFetcherIter:
                 self.endpoint += 1
                 self.page = -1
                 continue
+            if status == 'max retries reached':
+                LOGGER.debug('get_more: moving to next endpoint')
+                self.endpoint += 1
+                self.page = -1
+                continue
             LOGGER.debug('get_more, got %d more objs', len(objs))
             self.captures.extend(objs)
             if len(self.captures) > 0:
@@ -304,6 +309,9 @@ class CDXFetcher:
             return 'last page', []
         if resp.text == '':  # ia
             return 'last page', []
+        if resp.status_code in {503, 502, 504, 500}:
+            LOGGER.warning('return with status ' + str(resp.status_code))
+            return 'max retries reached', []
 
         ret = cdx_to_captures(resp, wb=self.wb, warc_url_prefix=self.warc_url_prefix)  # turns 404 into []
         if 'limit' in params:

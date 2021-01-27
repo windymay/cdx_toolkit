@@ -22,7 +22,7 @@ def dns_fatal(url):
         return True
 
 
-def myrequests_get(url, params=None, headers=None, cdx=False, allow404=False):
+def myrequests_get(url, params=None, headers=None, cdx=False, allow404=False, max_retries=5):
     if params:
         if 'from_ts' in params:
             params['from'] = params['from_ts']
@@ -57,6 +57,12 @@ def myrequests_get(url, params=None, headers=None, cdx=False, allow404=False):
             if resp.status_code in {503, 502, 504, 500}:  # pragma: no cover
                 # 503=slow down, 50[24] are temporary outages, 500=Amazon S3 generic error
                 retries += 1
+
+                if retries >= max_retries:
+                    LOGGER.warning('max retries reached, giving up')
+                    retry = False
+                    break
+
                 if retries > 5:
                     LOGGER.warning('retrying after 1s for %d', resp.status_code)
                 else:
@@ -87,6 +93,8 @@ def myrequests_get(url, params=None, headers=None, cdx=False, allow404=False):
         except requests.exceptions.RequestException as e:  # pragma: no cover
             LOGGER.warning('something unexpected happened, giving up after %s', str(e))
             raise
+
+
 
     hostname = urlparse(url).hostname
     if hostname not in previously_seen_hostnames:
